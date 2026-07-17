@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Remove one installed Android version. avm also removes the dir afterward.
+set -euo pipefail
+root="${ASDF_INSTALL_PATH:?ASDF_INSTALL_PATH not set}"
+rm -rf "$root"

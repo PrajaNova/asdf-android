@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Print installable Android API levels, ascending, space-separated.
+# ponytail: curated static list; derive from `sdkmanager --list` if it drifts.
+set -euo pipefail
+echo "30 31 32 33 34 35 36"

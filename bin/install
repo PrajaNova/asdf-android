@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Install one Android API-level baseline into ASDF_INSTALL_PATH.
+# Env provided by avm: ASDF_INSTALL_VERSION (API level), ASDF_INSTALL_PATH (target).
+# Note: pulls several GB — raise the avm timeout, e.g. AVM_ASDF_INSTALL_TIMEOUT=1800.
+set -euo pipefail
+
+here="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=lib/sdk.sh
+. "$here/lib/sdk.sh"
+
+api="${ASDF_INSTALL_VERSION:?ASDF_INSTALL_VERSION not set}"
+root="${ASDF_INSTALL_PATH:?ASDF_INSTALL_PATH not set}"
+build_tools="${ANDROID_BUILD_TOOLS_VERSION:-$api.0.0}"
+sdk="$root/sdk"
+tmp="${TMPDIR:-/tmp}"
+
+android_require_jdk
+
+mkdir -p "$sdk/cmdline-tools"
+url="$(android_cmdline_tools_url)"
+zip="$tmp/android-clt-$$.zip"
+
+echo "Downloading Android command-line tools..."
+curl -fL "$url" -o "$zip"
+
+rm -rf "$sdk/cmdline-tools/latest" "$tmp/cmdline-tools"
+unzip -q "$zip" -d "$tmp"
+mv "$tmp/cmdline-tools" "$sdk/cmdline-tools/latest"
+rm -f "$zip"
+
+sm="$sdk/cmdline-tools/latest/bin/sdkmanager"
+export ANDROID_HOME="$sdk" ANDROID_SDK_ROOT="$sdk"
+
+echo "Accepting licenses..."
+yes | "$sm" --sdk_root="$sdk" --licenses >/dev/null 2>&1 || true
+
+echo "Installing SDK packages for API $api (build-tools $build_tools)..."
+"$sm" --sdk_root="$sdk" \
+  "platform-tools" \
+  "platforms;android-$api" \
+  "build-tools;$build_tools" \
+  "emulator" \
+  "system-images;android-$api;google_apis;$(android_sysimg_abi)"
+
+android_write_wrappers "$root/bin" "$sdk"
+echo "Installed Android API $api at $root"
