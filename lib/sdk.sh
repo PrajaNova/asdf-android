@@ -24,14 +24,35 @@ android_sysimg_abi() {
   esac
 }
 
-# sdkmanager needs a real JDK. On macOS /usr/bin/java is a stub even with no JDK,
-# so actually run it rather than trusting `command -v`.
-android_require_jdk() {
-  if ! java -version >/dev/null 2>&1; then
-    echo "error: a JDK is required (Android sdkmanager needs Java)." >&2
-    echo "  Install a JDK, or run: avm java use <version>" >&2
-    return 1
+# Ensure a runnable JDK is on PATH for sdkmanager. The asdf sandbox clears env,
+# so a plain `java` is often absent (and macOS /usr/bin/java is a stub even with
+# no JDK). Prefer a working system java; otherwise wire up an avm-managed JDK
+# found under $HOME/.avm/tools/java (matching the global pin when possible).
+# Exports JAVA_HOME + PATH so the rest of install can call sdkmanager.
+android_ensure_jdk() {
+  if java -version >/dev/null 2>&1; then
+    return 0
   fi
+
+  candidate=""
+  pin="$(sed -n 's/.*"java"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$HOME/.avm.json" 2>/dev/null | head -1)"
+  if [ -n "$pin" ] && [ -x "$HOME/.avm/tools/java/$pin/bin/java" ]; then
+    candidate="$HOME/.avm/tools/java/$pin"
+  else
+    for d in "$HOME"/.avm/tools/java/*/; do
+      if [ -x "${d}bin/java" ]; then candidate="${d%/}"; break; fi
+    done
+  fi
+
+  if [ -n "$candidate" ] && [ -x "$candidate/bin/java" ]; then
+    export JAVA_HOME="$candidate"
+    export PATH="$candidate/bin:$PATH"
+    return 0
+  fi
+
+  echo "error: a JDK is required (Android sdkmanager needs Java)." >&2
+  echo "  Install a JDK, or run: avm java use <version>" >&2
+  return 1
 }
 
 # Write a wrapper that pins ANDROID_HOME to this version's SDK and execs the real

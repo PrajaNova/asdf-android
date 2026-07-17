@@ -14,7 +14,7 @@ build_tools="${ANDROID_BUILD_TOOLS_VERSION:-$api.0.0}"
 sdk="$root/sdk"
 tmp="${TMPDIR:-/tmp}"
 
-android_require_jdk
+android_ensure_jdk
 
 mkdir -p "$sdk/cmdline-tools"
 url="$(android_cmdline_tools_url)"
